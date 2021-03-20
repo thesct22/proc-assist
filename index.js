@@ -1,6 +1,7 @@
 var express = require('express');
 var app = express();
 var nodemailer = require('nodemailer');
+var schedule = require('node-schedule');
 
 var transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -10,14 +11,38 @@ var transporter = nodemailer.createTransport({
     }
 });
 var mysql      = require('mysql');
-var connection = mysql.createConnection({
+var connection = mysql.createPool({
     host     : 'remotemysql.com',
     user     : 'cc4mxFSMWm',
     password : '8NmwE8H5Sh',
     database : 'cc4mxFSMWm'
 });
-connection.connect();
+//connection.connect();
 var sendres=null;
+
+
+schedule.scheduleJob('0 0 * * *', () => { 
+    connection.query('select agreementid, vendorname, email from Agreement left join Vendor on Agreement.vendorid=Vendor.vendorid where Vendor.vendorid in (select vendorid from Agreement where productid in(select productid from Agreement where datediff(expirydate,curdate())<15))', function (error, results, fields) {
+        if (error) throw error;
+        var arr=results.map((val,index)=>{
+            var mailOptions = {
+                from: 'procurementassistantvit21@gmail.com',
+                to: val["email"],
+                subject: 'Hello'+val["vendorname"],
+                text: 'Please click this link to view our initial prices https://proc-assist.herokuapp.com/'+val["agreementid"]
+            };  
+            transporter.sendMail(mailOptions, function(error, info){
+            if (error) {
+                console.log(error);
+            } else {
+                console.log('Email sent: ' + info.response);
+            }
+            });
+                
+        });
+        sendres=results;
+    }); 
+})
 connection.query('SELECT vendorname, email from Vendor where vendorid in (select vendorid from Agreement where productid in(select productid from Agreement where datediff(expirydate,curdate())<15))', function (error, results, fields) {
     if (error) throw error;
     var arr=results.map((val,index)=>{
@@ -82,7 +107,7 @@ app.get('/:agreeId',(req,res)=>{
       }
     if(!isNaN(req.params.agreeId))
         executeAsynchronously(
-            [vendorq, productq, sendq], 20);
+            [vendorq, productq, sendq], 30);
     
     
 });
@@ -90,6 +115,5 @@ app.get('/:agreeId',(req,res)=>{
 const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => console.log(`Server is listening on port ${PORT}...`));  
-
 
 
