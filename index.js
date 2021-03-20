@@ -80,8 +80,9 @@ app.get('/:agreeId',(req,res)=>{
           timeout*=5;
         }
       }
-    executeAsynchronously(
-        [vendorq, productq, sendq], 20);
+    if(!isNaN(req.params.agreeId))
+        executeAsynchronously(
+            [vendorq, productq, sendq], 20);
     
     
 });
@@ -89,5 +90,6 @@ app.get('/:agreeId',(req,res)=>{
 const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => console.log(`Server is listening on port ${PORT}...`));  
+
 
 
